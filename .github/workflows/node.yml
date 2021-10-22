@@ -1,0 +1,82 @@
+name: Node CI
+on:
+  push:
+    branches:
+      - master
+jobs:
+  test:
+    name: Build, test, and release
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
+        node: [14]
+    runs-on: ${{ matrix.os }}
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: api-test
+        ports:
+          - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.3.4
+      - name: Setup Node.js
+        uses: actions/setup-node@v2.1.5
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Cache node modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ matrix.os }}-${{ matrix.node }}-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.node }}-${{ env.cache-name }}-
+            ${{ matrix.os }}-${{ matrix.node }}-
+            ${{ matrix.os }}-
+      - name: Install dependencies
+        run: npm ci
+      - name: Build TypeScript
+        run: npm run build
+      - name: Run tests
+        run: npm run test
+        env:
+          DB_PORT: ${{ job.services.mysql.ports['3306'] }}
+  release:
+    name: Release
+    runs-on: ubuntu-20.04
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.3.4
+      - name: Setup Node.js
+        uses: actions/setup-node@v2.1.5
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Cache node modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ matrix.os }}-${{ matrix.node }}-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.node }}-${{ env.cache-name }}-
+            ${{ matrix.os }}-${{ matrix.node }}-
+            ${{ matrix.os }}-
+      - name: Install dependencies
+        run: npm ci
+      - name: Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GIT_AUTHOR_NAME: 'FindingAnand'
+          GIT_AUTHOR_EMAIL: 'bot@anandchowdhary.com'
+          GIT_COMMITTER_NAME: 'FindingAnand'
+          GIT_COMMITTER_EMAIL: 'bot@anandchowdhary.com'
