@@ -23,7 +23,7 @@
     "test:e2e": "export TEST=true; npx ts-node tests/test-before.ts && jest --runInBand --config ./tests/jest-e2e.json --forceExit --testTimeout 30000"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^7.10.0",
+    "@elastic/elasticsearch": "^8.6.0",
     "@googlemaps/google-maps-services-js": "^3.1.14",
     "@koj/config": "^1.2.11",
     "@nestjs/common": "^7.6.5",
